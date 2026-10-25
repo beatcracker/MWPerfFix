@@ -1,0 +1,42 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "x86-release",
+      "displayName": "x86 release with debug information",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/x86-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "MWPERFFIX_DIAGNOSTICS": "OFF",
+        "CMAKE_CXX_COMPILER": "i686-w64-mingw32-clang++",
+        "CMAKE_RC_COMPILER": "i686-w64-mingw32-windres"
+      }
+    },
+    {
+      "name": "x86-diagnostic",
+      "displayName": "x86 diagnostic with debug information",
+      "inherits": "x86-release",
+      "binaryDir": "${sourceDir}/build/x86-diagnostic",
+      "cacheVariables": {
+        "MWPERFFIX_DIAGNOSTICS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "x86-release", "configurePreset": "x86-release" },
+    { "name": "x86-diagnostic", "configurePreset": "x86-diagnostic" }
+  ],
+  "testPresets": [
+    {
+      "name": "x86-release",
+      "configurePreset": "x86-release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "x86-diagnostic",
+      "configurePreset": "x86-diagnostic",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

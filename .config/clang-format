@@ -1,0 +1,12 @@
+BasedOnStyle: Microsoft
+BreakBeforeBraces: Attach
+BreakAfterReturnType: AllDefinitions
+ReflowComments: IndentOnly
+AlignAfterOpenBracket: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackLongBracedList: false
+BreakAfterOpenBracketFunction: true
+BreakBeforeCloseBracketFunction: true
+BreakAfterOpenBracketBracedList: true
+BreakBeforeCloseBracketBracedList: true

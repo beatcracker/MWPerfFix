@@ -1,0 +1,4 @@
+LIBRARY MWPerfFix
+EXPORTS
+    InitializeASI
+

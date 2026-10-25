@@ -1,0 +1,14 @@
+exclude = [
+  "build/**",
+  ".mise/**",
+  ".wip/**",
+]
+
+[formatting]
+align_comments      = true
+align_entries       = true
+array_auto_collapse = false
+array_auto_expand   = true
+column_width        = 0
+indent_string       = "  "
+reorder_keys        = true

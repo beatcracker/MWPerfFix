@@ -1,0 +1,14 @@
+[global]
+cache-dir = ".cache/rumdl"
+disable = [
+  "MD013",
+]
+exclude = [
+  "build/**",
+  ".mise/**",
+  ".wip/**",
+]
+respect-gitignore = true
+
+[MD024]
+siblings-only = true

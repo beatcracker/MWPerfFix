@@ -1,0 +1,13 @@
+#pragma once
+
+namespace mwperffix::build_info {
+
+inline constexpr char banner[] = "@MWPERFFIX_DISPLAY_NAME@ @PROJECT_VERSION@ (@MWPERFFIX_VARIANT@, @MWPERFFIX_REVISION@)";
+inline constexpr char version[] = "@PROJECT_VERSION@+@MWPERFFIX_REVISION@";
+inline constexpr char variant[] = "@MWPERFFIX_VARIANT@";
+inline constexpr char initialization_failure[] =
+    "@MWPERFFIX_DISPLAY_NAME@: initialization failed\n";
+inline constexpr wchar_t ini_filename[] = L"@PROJECT_NAME@.ini";
+inline constexpr wchar_t log_filename[] = L"@PROJECT_NAME@.log";
+
+}  // namespace mwperffix::build_info

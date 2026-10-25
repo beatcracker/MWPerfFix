@@ -1,0 +1,132 @@
+[settings]
+lockfile = true
+
+[vars]
+artifact_stem        = "MWPerfFix"
+build_dir            = 'build\x86-release'
+clang_format_config  = ".config/clang-format"
+diagnostic_build_dir = 'build\x86-diagnostic'
+rumdl_config         = ".config/rumdl.toml"
+taplo_config         = ".config/taplo.toml"
+toml_glob            = "**/*.toml"
+
+[tools]
+"aqua:Kitware/CMake"         = "latest"
+"aqua:PowerShell/PowerShell" = "latest"
+"aqua:cli/cli"               = "latest"
+"aqua:ninja-build/ninja"     = "latest"
+"aqua:rhysd/actionlint"      = "latest"
+"aqua:rvben/rumdl"           = "latest"
+"aqua:tamasfe/taplo"         = "latest"
+"github:mstorsjo/llvm-mingw" = { version = "latest", asset_pattern = "llvm-mingw-*-ucrt-x86_64.zip" }
+
+[tasks.build]
+description = "Build the release ASI and delivery artifacts"
+run = [
+  "cmake --preset x86-release",
+  "cmake --build --preset x86-release",
+]
+
+[tasks.fmt]
+description = "Format owned C++, Markdown, and TOML files"
+run = [
+  'clang-format --style=file:{{ vars.clang_format_config }} -i src/*.cpp src/*.hpp include/mwperffix/*.hpp tests/*.cpp tests/*.hpp diagnostics/src/*.cpp diagnostics/include/mwperffix/diagnostics/*.hpp diagnostics/tests/*.cpp',
+  'rumdl fmt --config {{ vars.rumdl_config }}',
+  'taplo format --config {{ vars.taplo_config }} {{ vars.toml_glob }}',
+]
+
+[tasks.test]
+depends = [
+  "build",
+]
+description = "Run focused tests against the release build"
+run = "ctest --preset x86-release"
+
+[tasks.build-diagnostic]
+description = "Build the isolated diagnostic ASI and artifacts"
+run = [
+  "cmake --preset x86-diagnostic",
+  "cmake --build --preset x86-diagnostic",
+]
+
+[tasks.benchmark]
+depends = [
+  "build",
+]
+description = "Measure synthetic relay lifecycle overhead"
+run = '"{{ vars.build_dir }}\mwperffix_adaptive_runtime_tests.exe" --benchmark'
+
+[tasks.check]
+depends = [
+  "test",
+]
+description = "Check Markdown and TOML, run release tests, and verify artifacts"
+run = [
+  'rumdl check --config {{ vars.rumdl_config }}',
+  'taplo format --check --config {{ vars.taplo_config }} {{ vars.toml_glob }}',
+  'cmake -E compare_files "{{ vars.artifact_stem }}.ini" "{{ vars.build_dir }}\{{ vars.artifact_stem }}.ini"',
+  'if not exist "{{ vars.build_dir }}\{{ vars.artifact_stem }}.pdb" exit /b 1',
+  'llvm-readobj --file-headers --coff-exports "{{ vars.build_dir }}\{{ vars.artifact_stem }}.asi" > "{{ vars.build_dir }}\artifact-info.txt"',
+  'findstr /l /c:"Machine: IMAGE_FILE_MACHINE_I386" "{{ vars.build_dir }}\artifact-info.txt"',
+  'findstr /l /c:"Name: InitializeASI" "{{ vars.build_dir }}\artifact-info.txt"',
+  'llvm-strings "{{ vars.build_dir }}\{{ vars.artifact_stem }}.asi" > "{{ vars.build_dir }}\artifact-strings.txt"',
+  # Confirm readability before treating findstr exit code 1 as no match.
+  'type "{{ vars.build_dir }}\artifact-strings.txt" >nul',
+  'findstr /l /c:"MWPerfFix.Diagnostics" /c:"MWPERFFIX_ETW_SCHEMA_" "{{ vars.build_dir }}\artifact-strings.txt" >nul & if errorlevel 2 (exit /b 2) else if errorlevel 1 (exit /b 0) else (exit /b 1)',
+]
+
+[tasks.check-diagnostic]
+depends = [
+  "build-diagnostic",
+]
+description = "Run diagnostic tests and verify delivery artifacts"
+run = [
+  "ctest --preset x86-diagnostic",
+  'cmake -E compare_files "{{ vars.artifact_stem }}.ini" "{{ vars.diagnostic_build_dir }}\{{ vars.artifact_stem }}.ini"',
+  'if not exist "{{ vars.diagnostic_build_dir }}\{{ vars.artifact_stem }}.pdb" exit /b 1',
+  'llvm-readobj --file-headers --coff-exports "{{ vars.diagnostic_build_dir }}\{{ vars.artifact_stem }}.asi" > "{{ vars.diagnostic_build_dir }}\artifact-info.txt"',
+  'findstr /l /c:"Machine: IMAGE_FILE_MACHINE_I386" "{{ vars.diagnostic_build_dir }}\artifact-info.txt"',
+  'findstr /l /c:"Name: InitializeASI" "{{ vars.diagnostic_build_dir }}\artifact-info.txt"',
+  'llvm-strings "{{ vars.diagnostic_build_dir }}\{{ vars.artifact_stem }}.asi" > "{{ vars.diagnostic_build_dir }}\artifact-strings.txt"',
+  'findstr /l /c:"MWPerfFix.Diagnostics" "{{ vars.diagnostic_build_dir }}\artifact-strings.txt"',
+  'findstr /l /c:"MWPERFFIX_ETW_SCHEMA_23" "{{ vars.diagnostic_build_dir }}\artifact-strings.txt"',
+]
+
+[tasks.validate-diagnostic]
+description = "Validate decoded MWPerfFix ETW XML: mise run validate-diagnostic -- -XmlPath <trace.xml>"
+run         = 'powershell -NoProfile -ExecutionPolicy Bypass -File diagnostics/tools/validate-etw.ps1'
+
+[tasks.smoke-etw]
+depends = [
+  "build-diagnostic",
+]
+description = "Capture and decode a synthetic ETW frame (requires an elevated terminal)"
+run = 'powershell -NoProfile -ExecutionPolicy Bypass -File diagnostics/etw-smoke/capture.ps1 -BuildDirectory "{{ vars.diagnostic_build_dir }}"'
+
+[tasks.analyze-diagnostic]
+description = "Analyze scheduler ETW and PresentMon: -- -EtlPath <trace.etl> -PresentMonCsv <frames.csv>"
+run         = 'powershell -NoProfile -ExecutionPolicy Bypass -File diagnostics/tools/analyze-capture.ps1'
+
+[tasks.ci]
+description = "Run normal, diagnostic, and workflow checks"
+run = [
+  { task = "check" },
+  { task = "check-diagnostic" },
+  'actionlint',
+]
+
+[tasks.package]
+description = "Check and package both variants with matching symbols"
+run = [
+  { task = "ci" },
+  'pwsh -NoProfile -File tools/release.ps1 Package',
+]
+
+[tasks.release]
+description = "Release the CMake version from the current clean commit"
+run = [
+  "cmake --preset x86-release",
+  'pwsh -NoProfile -File tools/release.ps1 Check',
+  { task = "package" },
+  'pwsh -NoProfile -File tools/release.ps1 Publish',
+]

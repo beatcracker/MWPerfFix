@@ -1,0 +1,14 @@
+#pragma once
+
+#include <windows.h>
+
+// MinGW SAL omits this SDK return-value annotation. It has no runtime effect.
+#ifndef _Ret_
+#define _Ret_
+#define MWPERFFIX_UNDEF_RET
+#endif
+#include "@TRACELOGGING_HEADER@"
+#ifdef MWPERFFIX_UNDEF_RET
+#undef _Ret_
+#undef MWPERFFIX_UNDEF_RET
+#endif

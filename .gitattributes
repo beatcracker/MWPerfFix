@@ -1,0 +1,11 @@
+# Normalize text to LF in the repository, matching .editorconfig.
+* text=auto eol=lf
+
+# Windows build and analysis artifacts are binary.
+*.asi binary
+*.pdb binary
+*.wprp text eol=lf
+
+# PowerShell scripts stay CRLF-friendly on checkout.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
